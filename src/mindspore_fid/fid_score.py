@@ -11,7 +11,7 @@ from mindspore.ops import adaptive_avg_pool2d
 from scipy import linalg
 from tqdm import tqdm
 
-from mindspore_fid.inception import InceptionV3
+from inception import InceptionV3
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 IMAGE_EXTENSIONS = {'bmp', 'jpg', 'jpeg', 'pgm', 'png', 'ppm',
@@ -76,7 +76,7 @@ def get_activations(files, model, batch_size=50, dims=2048,
     """
     model.set_train(False)
     dataset_generator = ImagePathDatasetGenerator(files, transforms=vision.ToTensor())
-    dataset = ds.GeneratorDataset(dataset_generator,["data"], shuffle=False, num_parallel_workers=num_workers)
+    dataset = ds.GeneratorDataset(dataset_generator, ["data"], shuffle=False, num_parallel_workers=num_workers)
     dataset = dataset.batch(batch_size=batch_size)
     pred_arr = np.empty((len(files), dims))
 
@@ -243,6 +243,7 @@ def main(args):
     fid_value = calculate_fid_given_paths(path, args.batch_size, args.dims, num_workers)
     print('FID: ', fid_value)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--sample_data_path", type=str, required=True)
@@ -254,4 +255,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     main(args)
-
