@@ -1,12 +1,11 @@
 import argparse
 import os
 import pathlib
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 
-from mindspore import dataset as ds
 import numpy as np
-from mindspore.dataset import vision
 from PIL import Image
+from mindspore import dataset as ds
+from mindspore.dataset import vision
 from mindspore.ops import adaptive_avg_pool2d
 from scipy import linalg
 from tqdm import tqdm
@@ -15,7 +14,7 @@ from inception import InceptionV3
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 IMAGE_EXTENSIONS = {'bmp', 'jpg', 'jpeg', 'pgm', 'png', 'ppm',
-                    'tif', 'tiff', 'webp'}
+                    'tif', 'tiff', 'webp', 'JPEG'}
 
 
 class ImagePathDatasetGenerator:
