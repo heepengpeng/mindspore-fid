@@ -17,25 +17,6 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 IMAGE_EXTENSIONS = {'bmp', 'jpg', 'jpeg', 'pgm', 'png', 'ppm',
                     'tif', 'tiff', 'webp'}
 
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-parser.add_argument('--batch-size', type=int, default=50,
-                    help='Batch size to use')
-parser.add_argument('--num-workers', type=int,
-                    help=('Number of processes to use for data loading. '
-                          'Defaults to `min(8, num_cpus)`'))
-parser.add_argument('--device', type=str, default=None,
-                    help='Device to use. Like GPU or CPU')
-parser.add_argument('--dims', type=int, default=2048,
-                    choices=list(InceptionV3.BLOCK_INDEX_BY_DIM),
-                    help=('Dimensionality of Inception features to use. '
-                          'By default, uses pool3 features'))
-parser.add_argument('--save-stats', action='store_true',
-                    help=('Generate an npz archive from a directory of samples. '
-                          'The first path is used as input and the second as output.'))
-parser.add_argument('path', type=str, nargs=2,
-                    help=('Paths to the generated images or '
-                          'to .npz statistic files'))
-
 
 class ImagePathDatasetGenerator:
     def __init__(self, files, transforms=None):
@@ -119,7 +100,7 @@ def calculate_activation_statistics(files, model, batch_size, dims, num_workers)
     return mu, sigma
 
 
-def compute_statistics_of_path(path, model, batch_size, dims, num_workers=1):
+def compute_statistics_of_path(path, model, batch_size, dims, num_workers):
     if path.endswith('.npz'):
         with np.load(path) as f:
             m, s = f['mu'][:], f['sigma'][:]
@@ -207,23 +188,19 @@ def calculate_fid_given_paths(paths, batch_size, dims, num_workers):
     return fid_value
 
 
-def save_fid_stats(paths, batch_size, device, dims, num_workers=1):
+def save_fid_stats(paths, batch_size, dims, num_workers):
     """Calculates the FID of two paths"""
     if not os.path.exists(paths[0]):
         raise RuntimeError('Invalid path: %s' % paths[0])
 
-    if os.path.exists(paths[1]):
-        raise RuntimeError('Existing output file: %s' % paths[1])
-
     block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
 
-    model = InceptionV3([block_idx]).to(device)
+    model = InceptionV3([block_idx])
 
     print(f"Saving statistics for {paths[0]}")
 
     m1, s1 = compute_statistics_of_path(paths[0], model, batch_size,
-                                        dims, device, num_workers)
-
+                                        dims, num_workers)
     np.savez_compressed(paths[1], mu=m1, sigma=s1)
 
 
