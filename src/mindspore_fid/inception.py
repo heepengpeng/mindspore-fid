@@ -1,12 +1,9 @@
-import operator
-
 import mindcv
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 import torch
 from mindcv import DownLoad
-
 from mindcv.models.inception_v3 import InceptionA, InceptionC, InceptionE, BasicConv2d
 
 # Inception weights ported to Pytorch from
@@ -198,27 +195,11 @@ def fid_inception_v3():
     inception.inception6e = FIDInceptionC(768, channels_7x7=192)
     inception.inception7b = FIDInceptionE_1(1280)
     inception.inception7c = FIDInceptionE_2(2048)
-    params_dict = inception.parameters_dict()
-    sorted_params_dict = dict(sorted(params_dict.items(), key=operator.itemgetter(0)))
-    with open("params_dict.txt", "w+") as f:
-        lines = []
-        for k, v in sorted_params_dict.items():
-            line = f"name:{k} , shape:{v.shape}\n"
-            lines.append(line)
-        f.writelines(lines)
-
     model_name = "pt_inception-2015-12-05-6726825d"
     local_path = f'pretrained_models/{model_name}' + ".pth"
     DownLoad().download_url(url=FID_WEIGHTS_URL, path='pretrained_models')
     state_dict = torch.load(local_path, map_location=torch.device('cpu'))
     ms_ckpt = torch_to_mindspore(state_dict)
-    sorted_ms_ckpt = sorted(ms_ckpt, key=lambda i: i['name'])
-    with open("convert_ckpt.txt", "w+") as f:
-        lines = []
-        for i in sorted_ms_ckpt:
-            line = f"name:{i['name']}, shape:{i['data'].shape} \n"
-            lines.append(line)
-        f.writelines(lines)
     ms_ckpt_path = local_path.replace('.pth', '.ckpt')
     from mindspore.train.serialization import save_checkpoint
     save_checkpoint(ms_ckpt, ms_ckpt_path)
@@ -367,8 +348,6 @@ class FIDInceptionC(InceptionC):
         x1 = self.branch1(x)
         x2 = self.branch2(x)
 
-        # Patch: Tensorflow's average pool does not use the padded zero's in
-        # its average calculation
         branch_pool = ops.avg_pool2d(x, kernel_size=3, stride=1, padding=1, count_include_pad=False)
         branch_pool = self.branch_pool(branch_pool)
 
@@ -390,8 +369,6 @@ class FIDInceptionE_1(InceptionE):
         x2 = self.branch2(x)
         x2 = ops.concat((self.branch2a(x2), self.branch2b(x2)), axis=1)
 
-        # Patch: Tensorflow's average pool does not use the padded zero's in
-        # its average calculation
         branch_pool = ops.avg_pool2d(x, kernel_size=3, stride=1, padding=1, count_include_pad=False)
         branch_pool = self.branch_pool(branch_pool)
 
