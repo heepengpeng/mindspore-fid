@@ -142,10 +142,15 @@ class InceptionV3(nn.Cell):
         x = inp
 
         if self.resize_input:
-            x = ops.interpolate(x,
-                                size=(299, 299),
-                                mode='bilinear',
-                                align_corners=False)
+            if ms.__version__.startswith("1."):
+                x = ops.interpolate(x,
+                                    sizes=(299, 299),
+                                    mode='bilinear')
+            else:
+                x = ops.interpolate(x,
+                                    size=(299, 299),
+                                    mode='bilinear',
+                                    align_corners=False)
 
         if self.normalize_input:
             x = 2 * x - 1  # Scale from range (0, 1) to range (-1, 1)
@@ -329,11 +334,14 @@ class FIDInceptionA(InceptionA):
         x0 = self.branch0(x)
         x1 = self.branch1(x)
         x2 = self.branch2(x)
-        branch_pool = ops.avg_pool2d(x, kernel_size=3, stride=1, padding=1, count_include_pad=False)
+        if ms.__version__.startswith("1."):
+            branch_pool = ops.avg_pool2d(x, kernel_size=3, strides=1, pad_mode="same")
+        else:
+            branch_pool = ops.avg_pool2d(x, kernel_size=3, stride=1, padding=1, count_include_pad=False)
         branch_pool = self.branch_pool(branch_pool)
 
         outputs = [x0, x1, x2, branch_pool]
-        return ops.cat(outputs, 1)
+        return ops.concat(outputs, 1)
 
 
 class FIDInceptionC(InceptionC):
@@ -347,8 +355,10 @@ class FIDInceptionC(InceptionC):
         x0 = self.branch0(x)
         x1 = self.branch1(x)
         x2 = self.branch2(x)
-
-        branch_pool = ops.avg_pool2d(x, kernel_size=3, stride=1, padding=1, count_include_pad=False)
+        if ms.__version__.startswith("1."):
+            branch_pool = ops.avg_pool2d(x, kernel_size=3, strides=1, pad_mode="same")
+        else:
+            branch_pool = ops.avg_pool2d(x, kernel_size=3, stride=1, padding=1, count_include_pad=False)
         branch_pool = self.branch_pool(branch_pool)
 
         outputs = [x0, x1, x2, branch_pool]
@@ -368,8 +378,10 @@ class FIDInceptionE_1(InceptionE):
         x1 = ops.concat((self.branch1a(x1), self.branch1b(x1)), axis=1)
         x2 = self.branch2(x)
         x2 = ops.concat((self.branch2a(x2), self.branch2b(x2)), axis=1)
-
-        branch_pool = ops.avg_pool2d(x, kernel_size=3, stride=1, padding=1, count_include_pad=False)
+        if ms.__version__.startswith("1."):
+            branch_pool = ops.avg_pool2d(x, kernel_size=3, strides=1, pad_mode="same")
+        else:
+            branch_pool = ops.avg_pool2d(x, kernel_size=3, stride=1, padding=1, count_include_pad=False)
         branch_pool = self.branch_pool(branch_pool)
 
         outputs = [x0, x1, x2, branch_pool]
@@ -389,7 +401,10 @@ class FIDInceptionE_2(InceptionE):
         x1 = ops.concat((self.branch1a(x1), self.branch1b(x1)), axis=1)
         x2 = self.branch2(x)
         x2 = ops.concat((self.branch2a(x2), self.branch2b(x2)), axis=1)
-        branch_pool = ops.max_pool2d(x, kernel_size=3, stride=1, padding=1)
+        if ms.__version__.startswith("1."):
+            branch_pool = ops.avg_pool2d(x, kernel_size=3, strides=1, pad_mode="same")
+        else:
+            branch_pool = ops.max_pool2d(x, kernel_size=3, stride=1, padding=1)
         branch_pool = self.branch_pool(branch_pool)
         outputs = [x0, x1, x2, branch_pool]
         return ops.concat(outputs, 1)

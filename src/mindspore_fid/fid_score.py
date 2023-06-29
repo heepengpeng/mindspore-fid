@@ -9,8 +9,9 @@ from mindspore.dataset import vision
 from mindspore.ops import adaptive_avg_pool2d
 from scipy import linalg
 from tqdm import tqdm
-
+import mindspore as ms
 from inception import InceptionV3
+from mindspore import amp, nn
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 IMAGE_EXTENSIONS = {'bmp', 'jpg', 'jpeg', 'pgm', 'png', 'ppm',
@@ -63,7 +64,7 @@ def get_activations(files, model, batch_size=50, dims=2048,
     start_idx = 0
     ds_iter = dataset.create_dict_iterator()
     for batch in tqdm(ds_iter):
-        pred = model(batch["data"])[0]
+        pred = model(batch["data"].astype(ms.float16))[0]
         if pred.shape[2] != 1 or pred.shape[3] != 1:
             pred = adaptive_avg_pool2d(pred, output_size=(1, 1))
 
@@ -178,6 +179,10 @@ def calculate_fid_given_paths(paths, batch_size, dims, num_workers):
     block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
 
     model = InceptionV3([block_idx])
+    model.to_float(ms.float16)
+    for _, cell in model.cells_and_names():
+        if isinstance(cell, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+            cell.to_float(ms.float32)
 
     m1, s1 = compute_statistics_of_path(paths[0], model, batch_size,
                                         dims, num_workers)
@@ -196,6 +201,8 @@ def save_fid_stats(paths, batch_size, dims, num_workers):
 
     model = InceptionV3([block_idx])
 
+    model = amp.auto_mixed_precision(model, "O3")
+
     print(f"Saving statistics for {paths[0]}")
 
     m1, s1 = compute_statistics_of_path(paths[0], model, batch_size,
@@ -204,6 +211,9 @@ def save_fid_stats(paths, batch_size, dims, num_workers):
 
 
 def main(args):
+    ms.set_context(mode=ms.PYNATIVE_MODE)
+    if args.profile_path:
+        profile = ms.Profiler(output_path=args.profile_path)
     if args.num_workers is None:
         try:
             num_cpus = len(os.sched_getaffinity(0))
@@ -215,9 +225,13 @@ def main(args):
     path = [args.sample_data_path, args.ref_data_path]
     if args.save_stats:
         save_fid_stats(path, args.batch_size, args.dims, num_workers)
+        if args.profile_path:
+            profile.analyse()
         exit(0)
     fid_value = calculate_fid_given_paths(path, args.batch_size, args.dims, num_workers)
     print('FID: ', fid_value)
+    if args.profile_path:
+        profile.analyse()
 
 
 if __name__ == '__main__':
@@ -228,6 +242,7 @@ if __name__ == '__main__':
     parser.add_argument("--save_stats", type=bool, default=False)
     parser.add_argument("--batch_size", type=int, default=50)
     parser.add_argument("--dims", type=int, default=2048)
+    parser.add_argument('--profile_path', default=None, type=str)
     args = parser.parse_args()
     print(args)
     main(args)
